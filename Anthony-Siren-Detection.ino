@@ -87,7 +87,6 @@ void zero() {
   digitalWrite(E, HIGH);
   digitalWrite(F, HIGH);
   digitalWrite(G, LOW);
-  digitalWrite(P, LOW);
 }
 
 void one() {
@@ -98,7 +97,6 @@ void one() {
   digitalWrite(E, LOW);
   digitalWrite(F, LOW);
   digitalWrite(G, LOW);
-  digitalWrite(P, LOW);
 }
 
 void two()
@@ -110,7 +108,6 @@ void two()
   digitalWrite(E, HIGH);
   digitalWrite(F, LOW);
   digitalWrite(G, HIGH);
-  digitalWrite(P, LOW);
 }
 void three() 
 {
@@ -260,6 +257,9 @@ void loop() {
       fake_clock[0] += 1; 
       fake_clock[1] = 0;
     }
+    if (fake_cock[0] > 23){
+      fake_clock[0] = 0;
+    }
     Serial.print(fake_clock[0]);
     Serial.print(":");
     Serial.println(fake_clock[1]);
@@ -321,6 +321,8 @@ void loop() {
     pickNumber(digits[i]);
     delay(del);
   }
+  
+  
   /* --- CODE FOR DISPLAYING EACH DIGIT --- 
   for (int i = 0; i < 4; i++){
     Serial.print(digits[i]);
