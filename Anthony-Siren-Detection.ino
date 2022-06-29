@@ -34,13 +34,18 @@ double frequency_sum = 0;
 int frequency_count = 0;
 int frequency_continuity = 0;
 float frequency;
-const int frequency_range[] = {0, 0}; // Use this to set the limits of the frequency range
+const int frequency_range[] = {700, 2400}; // Use this to set the limits of the frequency range
 int fake_clock[] = {0, 0}; // This is our time variable. First element is hours, second element is minutes. 
 unsigned long last_clock_update = 0; // Will be used to update the clock. Every 1000 millis, incremenent 1 minute 
 int del = 3; // Delay between updating display (ms)
 int value = 2345; // This is the value that will be printed onto the display - The maxmimum value is 9999
 int digits[] = {0, 0, 0, 0};
-bool siren_delay = false; // This states whether the 5 minute delay is triggered
+float bump = true;
+int last_actuation[] = {fake_clock[0], fake_clock[1]};
+bool siren_delay = false;
+int time_diff = 0;
+bool relayUpState = true;
+bool relayDownState = false;
 
 // --------- 4D7S Functions --------- //
 
@@ -246,8 +251,8 @@ void setup() {
   pinMode(P, OUTPUT);
   pinMode(RELAY_UP_PIN, OUTPUT); 
   pinMode(RELAY_DOWN_PIN, OUTPUT);
-  pinMode(CLOCK_BUTTON, INPUT);
-  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(RELAY_UP_PIN, relayUpState);
+  digitalWrite(RELAY_DOWN_PIN, relayDownState);
 }
 
 void loop() {
@@ -278,44 +283,71 @@ void loop() {
     frequency_sum += FreqMeasure.read();
     frequency_count += 1;
     
-    if (frequency_count > 100) {
+    if (frequency_count > 20) {
       frequency = FreqMeasure.countToFrequency(frequency_sum / frequency_count);
+      Serial.println(frequency);
       frequency_sum = 0;
       frequency_count = 0;
+      
     }
   }
 
   if (frequency > frequency_range[0] && frequency < frequency_range[1]) {
     // IC's guess at siren frequency. Possibly use a long response to rule out car horns.
-    //frequency_continuity++;
-    frequency=0;
+    frequency_continuity++;
+    frequency = 0;
   }
 
-  if (frequency_continuity >= 3){ // We have detected a siren
-        Serial.println("SIREN DETECTED");
-        // RELAY_UP = true
-        // RELAY_DOWN = false
-        // Pistons down
-        digitalWrite(RELAY_UP_PIN, LOW);
-        digitalWrite(RELAY_DOWN_PIN, HIGH);
+  // Get time difference between last actuation 
+  if ((fake_clock[0] * 60 + fake_clock[1]) - (last_actuation[0] * 60 + last_actuation[1]) > 5 && siren_delay == true){
+    // 5 minutes have passed since we detected the siren
+    // Put the pistons back up
+     
+    // Set RELAY_UP to low and RELAY_DOWN to high to put pistons back up
+    relayUpState = HIGH;
+    relayDownState = LOW;
+    digitalWrite(RELAY_UP_PIN, relayUpState);
+    digitalWrite(RELAY_DOWN_PIN, relayDownState);
+    siren_delay = false;
+    bump = true;
+    for (int i = 0; i < 4; i++){
+          clearLEDs();
+        }
+    delay(1000);
+  }
+  
+  
+  // Get the fake time difference between last siren actuation 
+  if (frequency_continuity >= 3 && bump == true && siren_delay == false){
+     // We have detected a siren and the pistons are up
+     Serial.println("SIREN DETECTED");
+
+     // Pistons down
+     relayUpState = LOW;
+     relayDownState = HIGH;
+     digitalWrite(RELAY_UP_PIN, relayUpState);
+     digitalWrite(RELAY_DOWN_PIN, relayDownState);
+     bump = false;
+     siren_delay = true;
         
-        // We have heard a siren. RELAY_DOWN is HIGH. Now wait 15 seconds for the pistons to come down
-        delay(15000);
+     // We have heard a siren. RELAY_DOWN is HIGH. Now wait 15 seconds for the pistons to come down
+     //delay(15000);
+        
+     last_actuation[0] = fake_clock[0];
+     last_actuation[1] = fake_clock[1];
+     for (int i = 0; i < 4; i++){
+       clearLEDs();
+     }
+     delay(1000);
+     // For now, because speed bump won't actually take 15 seconds to go up and down in "fake time",
+     // (15 seconds in real time would be 15 minutes in fake time, which is unreasonable), 
+     // I will just pause the fake clock while the 15 second window occurs, and resume once actuation has finished
+        
+     // Reset the frequency_continuity to 0 -> reset the counter and recheck for frequencies.
+     frequency_continuity = 0;
 
-        // For now, because speed bump won't actually take 15 seconds to go up and down in "fake time",
-        // (15 seconds in real time would be 15 minutes in fake time, which is unreasonable), 
-        // I will just pause the fake clock while the 15 second window occurs, and resume once actuation has finished
-
-        // Now wait "5 Minutes" while pistons are down
-        delay(300000);
-        // Reset the frequency_continuity to 0 -> reset the counter and recheck for frequencies.
-        frequency_continuity = 0;
-
-        // Set RELAY_UP to low and RELAY_DOWN to high to put pistons back up
-        digitalWrite(RELAY_UP_PIN, HIGH);
-        digitalWrite(RELAY_DOWN_PIN, LOW);
-    }
-    
+  
+  }
   // Updating the 4 DIGIT DISPLAY
   
   value = fake_clock[0] * 100 + fake_clock[1];
