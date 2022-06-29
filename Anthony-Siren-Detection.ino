@@ -13,7 +13,7 @@
 #define RELAY_DOWN_PIN 12
 
 // These pins refer to which digit on the display to update
-#define D1 2
+#define D1 A5
 #define D2 3
 #define D3 4
 #define D4 5
@@ -28,6 +28,7 @@
 #define G A1
 #define P A2
 
+
 unsigned long last_siren_trigger = 0; // When was the last time that a siren was triggered? Use this to calculate when the 5 minute window has passed
 double frequency_sum = 0;
 int frequency_count = 0;
@@ -39,6 +40,7 @@ unsigned long last_clock_update = 0; // Will be used to update the clock. Every 
 int del = 3; // Delay between updating display (ms)
 int value = 2345; // This is the value that will be printed onto the display - The maxmimum value is 9999
 int digits[] = {0, 0, 0, 0};
+bool siren_delay = false; // This states whether the 5 minute delay is triggered
 
 // --------- 4D7S Functions --------- //
 
@@ -244,9 +246,12 @@ void setup() {
   pinMode(P, OUTPUT);
   pinMode(RELAY_UP_PIN, OUTPUT); 
   pinMode(RELAY_DOWN_PIN, OUTPUT);
+  pinMode(CLOCK_BUTTON, INPUT);
+  pinMode(LED_PIN, OUTPUT);
 }
 
 void loop() {
+  
   // Update fake clock
   if (millis() - last_clock_update > 1000){
     // One second has passed
@@ -257,13 +262,14 @@ void loop() {
       fake_clock[0] += 1; 
       fake_clock[1] = 0;
     }
-    if (fake_cock[0] > 23){
+    if (fake_clock[0] > 23){
       fake_clock[0] = 0;
     }
+    /* Print Clock
     Serial.print(fake_clock[0]);
     Serial.print(":");
     Serial.println(fake_clock[1]);
-    
+    */
   }
   
   // Siren Detection
@@ -296,6 +302,10 @@ void loop() {
         // We have heard a siren. RELAY_DOWN is HIGH. Now wait 15 seconds for the pistons to come down
         delay(15000);
 
+        // For now, because speed bump won't actually take 15 seconds to go up and down in "fake time",
+        // (15 seconds in real time would be 15 minutes in fake time, which is unreasonable), 
+        // I will just pause the fake clock while the 15 second window occurs, and resume once actuation has finished
+
         // Now wait "5 Minutes" while pistons are down
         delay(300000);
         // Reset the frequency_continuity to 0 -> reset the counter and recheck for frequencies.
@@ -309,10 +319,6 @@ void loop() {
   // Updating the 4 DIGIT DISPLAY
   
   value = fake_clock[0] * 100 + fake_clock[1];
-  if (value > 9999){
-    value = 0;
-    Serial.print("Value overflow");
-  }
   
   for (int i = 0; i < 4; i++){
     pickDigit(i);
