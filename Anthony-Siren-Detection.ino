@@ -253,38 +253,17 @@ void loop() {
   value += 1;
   
   if (value > 9999){
-    value = 9999;
+    value = 0;
     Serial.print("Value overflow");
   }
-  
-  pickDigit(0);
-  clearLEDs();
-  pickNumber((value % 10000) / 1000); // Get the first digit and update
-  digits[0] = (value % 10000) / 1000;
-  delay(del);
-  pickDigit(1);
-  clearLEDs();
-  pickNumber((value % 1000) / 100); // Get the second digit and update
-  digits[1] = (value % 1000) / 100;
-  delay(del);
 
-  pickDigit(2);
-  clearLEDs();
-  pickNumber((value % 100) / 10); // Get the third digit and update
-  digits[2] = ((value % 100) / 10);
-  delay(del);
-
-  
-  pickDigit(3);
-  clearLEDs();
-  pickNumber((value % 10) / 1); // Get the fourth digit and update
-  digits[3] = ((value % 10) / 1);
-  delay(del);
-
-
-  Serial.print(digits[0]);Serial.print(digits[1]);Serial.print(digits[2]);Serial.println(digits[3]);
-  
-
+  for (int i = 0; i < 4; i++){
+    pickDigit(i);
+    clearLEDs();
+    digits[i] = (value % 10**(4-i)) / 10**(3-i);
+    pickNumer(digits[i]);
+    delay(del);
+  }
   
   if (FreqMeasure.available()) {
     // Calculate the average frequency over 100 loops
