@@ -28,13 +28,14 @@
 #define G A1
 #define P A2
 
-int last_triggered_time=0;
-double frequency_sum=0;
-int frequency_count=0;
-int frequency_continuity =0;
+unsigned long last_siren_trigger = 0; // When was the last time that a siren was triggered? Use this to calculate when the 5 minute window has passed
+double frequency_sum = 0;
+int frequency_count = 0;
+int frequency_continuity = 0;
 float frequency;
-
-
+const int frequency_range[] = {0, 0}; // Use this to set the limits of the frequency range
+int fake_clock[] = {0, 0}; // This is our time variable. First element is hours, second element is minutes. 
+unsigned long last_clock_update = 0; // Will be used to update the clock. Every 1000 millis, incremenent 1 minute 
 int del = 3; // Delay between updating display (ms)
 int value = 2345; // This is the value that will be printed onto the display - The maxmimum value is 9999
 int digits[] = {0, 0, 0, 0};
@@ -189,7 +190,6 @@ void nine()
 
 void pickNumber(int x){
   // Based on the digit we have, print it to the display
-
   switch (x)
   {
     default:
@@ -229,7 +229,8 @@ void pickNumber(int x){
 void setup() {
   Serial.begin(9600);
   FreqMeasure.begin(); //Measures on pin 8 by default
-
+  
+  last_clock_update = millis();
   
   // Set pin values on arduino
   pinMode(D1, OUTPUT);
@@ -249,22 +250,23 @@ void setup() {
 }
 
 void loop() {
-  // Updating the 4 DIGIT DISPLAY
-  value += 1;
-  
-  if (value > 9999){
-    value = 0;
-    Serial.print("Value overflow");
+  // Update fake clock
+  if (millis() - last_clock_update > 1000){
+    // One second has passed
+    fake_clock[1] += 1;
+    last_clock_update = millis();
+    
+    if (fake_clock[1] > 59){
+      fake_clock[0] += 1; 
+      fake_clock[1] = 0;
+    }
+    Serial.print(fake_clock[0]);
+    Serial.print(":");
+    Serial.println(fake_clock[1]);
+    
   }
-
-  for (int i = 0; i < 4; i++){
-    pickDigit(i);
-    clearLEDs();
-    digits[i] = (value % 10**(4-i)) / 10**(3-i);
-    pickNumer(digits[i]);
-    delay(del);
-  }
   
+  // Siren Detection
   if (FreqMeasure.available()) {
     // Calculate the average frequency over 100 loops
     frequency_sum += FreqMeasure.read();
@@ -272,24 +274,21 @@ void loop() {
     
     if (frequency_count > 100) {
       frequency = FreqMeasure.countToFrequency(frequency_sum / frequency_count);
-      Serial.println(frequency);
       frequency_sum = 0;
       frequency_count = 0;
     }
   }
-  /*
-  if (frequency>2400 && frequency<3300) {
+
+  if (frequency > frequency_range[0] && frequency < frequency_range[1]) {
     // IC's guess at siren frequency. Possibly use a long response to rule out car horns.
-    frequency_continuity++;
-    Serial.print("frequency_continuity -> ");
-    Serial.println(frequency_continuity);
+    //frequency_continuity++;
     frequency=0;
   }
 
   if (frequency_continuity >= 3){ // We have detected a siren
+        Serial.println("SIREN DETECTED");
         // RELAY_UP = true
         // RELAY_DOWN = false
-        Serial.println("LIGHT TURNED ON ");
         // Pistons down
         digitalWrite(RELAY_UP_PIN, LOW);
         digitalWrite(RELAY_DOWN_PIN, HIGH);
@@ -306,5 +305,26 @@ void loop() {
         digitalWrite(RELAY_UP_PIN, HIGH);
         digitalWrite(RELAY_DOWN_PIN, LOW);
     }
-    */
+    
+  // Updating the 4 DIGIT DISPLAY
+  
+  value = fake_clock[0] * 100 + fake_clock[1];
+  if (value > 9999){
+    value = 0;
+    Serial.print("Value overflow");
+  }
+  
+  for (int i = 0; i < 4; i++){
+    pickDigit(i);
+    clearLEDs();
+    digits[i] = (value % (int)pow(10,(4-i))) / pow(10,3-i);
+    pickNumber(digits[i]);
+    delay(del);
+  }
+  /* --- CODE FOR DISPLAYING EACH DIGIT --- 
+  for (int i = 0; i < 4; i++){
+    Serial.print(digits[i]);
+  }
+  Serial.println();
+  */
 }
