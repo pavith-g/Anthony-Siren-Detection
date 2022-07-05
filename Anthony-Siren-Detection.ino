@@ -35,7 +35,7 @@ int frequency_count = 0;
 int frequency_continuity = 0;
 float frequency;
 const int frequency_range[] = {700, 2400}; // Use this to set the limits of the frequency range
-int fake_time = 0; // Calculate fake time in minutes - convert to hours and minutes when needed
+int fake_time = 400; // Calculate fake time in minutes - convert to hours and minutes when needed
 unsigned long last_clock_update = 0; // Will be used to update the clock. Every 1000 millis, incremenent 1 minute 
 int del = 3; // Delay between updating display (ms)
 int value = 0; // This is the value that will be printed onto the display - The maxmimum value is 9999
@@ -46,6 +46,7 @@ bool siren_delay = false; // This variable tracks whether we are waiting the "5 
 bool relayUpState = true;
 bool relayDownState = false;
 int pistonActuationDelay = 15000; // Time for the pistons to actuate up and down
+bool schoolZone = false; // Tracks whether current time is within school zone time
 
 
 // --------- 4D7S Functions --------- //
@@ -270,8 +271,56 @@ void loop() {
       //reset time to 0
       fake_time = 0;
     }
+
+    // SCHOOL ZONE TIMES
+    // We only need to check school zone times once the clock has been updated, not every time the Arduino loops.
+    // Note that all time calculations are done in minutes
+    // Actual school zone times: 8am - 9:30am and 2:30pm - 4pm
+    // In minutes: 480 - 570 and 870 - 960
+
+    if (fake_time <= 570 && fake_time >= 480){ 
+      schoolZone = true;
+    }
+    else if (fake_time <= 960 && fake_time >= 870){
+      schoolZone = true;
+    }
+    else {
+      schoolZone = false;
+    }
   }
-  
+
+  if (schoolZone == true && siren_delay == false && bump == false){
+    // If school zone is true, and there is no siren_delay, and the speed bump isn't already up
+    relayUpState = HIGH;
+    relayDownState = LOW;
+    digitalWrite(RELAY_UP_PIN, relayUpState);
+    digitalWrite(RELAY_DOWN_PIN, relayDownState);
+    bump = true;
+
+    // During piston actuation, turn off the display
+    for (int i = 0; i < 4; i++){
+          clearLEDs();
+    }
+    // Wait "this amount of time" for the pistons to actuate. 
+    delay(pistonActuationDelay);
+  }
+  if (schoolZone == false && bump == true && siren_delay == false){
+    // If not in school zone, no siren delay, and the bump is up
+    relayUpState = LOW;
+    relayDownState = HIGH;
+    digitalWrite(RELAY_UP_PIN, relayUpState);
+    digitalWrite(RELAY_DOWN_PIN, relayDownState);
+    bump = false;
+    
+    // During piston actuation, turn off the display
+    for (int i = 0; i < 4; i++){
+          clearLEDs();
+    }
+    // Wait "this amount of time" for the pistons to actuate. 
+    delay(pistonActuationDelay);
+  }
+
+ 
   // Siren Detection
   if (FreqMeasure.available()) {
     // Calculate the average frequency over 100 loops
@@ -282,7 +331,6 @@ void loop() {
       frequency = FreqMeasure.countToFrequency(frequency_sum / frequency_count);
       frequency_sum = 0;
       frequency_count = 0;
-      
     }
   }
 
@@ -294,7 +342,7 @@ void loop() {
 
   // Get time difference between last actuation 
   // If it has been more than 5 minutes and we have already have a siren (siren delay = true), then we can put the pistons back up
-  if (fake_time - last_actuation > 5 && siren_delay == true){
+  if (fake_time - last_actuation > 5 && siren_delay == true && bump == false){
     // 5 minutes have passed since we detected the siren
     // Put the pistons back up
      
@@ -347,8 +395,6 @@ void loop() {
   }
   
   // Updating the 4 DIGIT DISPLAY
-
-  
   // Convert minutes to hours 
   // Because hours is an integer, dividing "fake_time" by 60 will give an integer back (the number of hours)
   int hours = fake_time / 60;
