@@ -303,6 +303,11 @@ void loop() {
     }
     // Wait "this amount of time" for the pistons to actuate. 
     delay(pistonActuationDelay);
+    
+    relayUpState = LOW;
+    relayDownState = LOW;
+    digitalWrite(RELAY_UP_PIN, relayUpState);
+    digitalWrite(RELAY_DOWN_PIN, relayDownState);
   }
   if (schoolZone == false && bump == true && siren_delay == false){
     // If not in school zone, no siren delay, and the bump is up
@@ -312,12 +317,18 @@ void loop() {
     digitalWrite(RELAY_DOWN_PIN, relayDownState);
     bump = false;
     
+    
     // During piston actuation, turn off the display
     for (int i = 0; i < 4; i++){
           clearLEDs();
     }
     // Wait "this amount of time" for the pistons to actuate. 
     delay(pistonActuationDelay);
+    
+    relayUpState = LOW;
+    relayDownState = LOW;
+    digitalWrite(RELAY_UP_PIN, relayUpState);
+    digitalWrite(RELAY_DOWN_PIN, relayDownState);
   }
 
  
@@ -360,6 +371,11 @@ void loop() {
     }
     // Wait "this amount of time" for the pistons to actuate. 
     delay(pistonActuationDelay);
+    
+    relayUpState = LOW;
+    relayDownState = LOW;
+    digitalWrite(RELAY_UP_PIN, relayUpState);
+    digitalWrite(RELAY_DOWN_PIN, relayDownState);
   }
   
   // Get the fake time difference between last siren actuation 
@@ -385,6 +401,12 @@ void loop() {
 
      // Wait "this amount of time" for the pistons to actuate
      delay(pistonActuationDelay);
+
+     
+     relayUpState = LOW;
+     relayDownState = LOW;
+     digitalWrite(RELAY_UP_PIN, relayUpState);
+     digitalWrite(RELAY_DOWN_PIN, relayDownState);
      
      // For now, because speed bump won't actually take 15 seconds to go up and down in "fake time",
      // (15 seconds in real time would be 15 minutes in fake time, which is unreasonable), 
